@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/contexts/AuthContext';
-import { demoCredentials } from '@/data/mockUsers';
+import { api } from '@/services/api';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -36,22 +36,38 @@ export default function Login() {
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
-    setIsSubmitting(true);
-    const success = await login({ email: data.email, password: data.password });
+  // Update the onSubmit function:
+const onSubmit = async (data: LoginFormData) => {
+  setIsSubmitting(true);
+  try {
+    const response = await api.auth.login({
+      email: data.email,
+      password: data.password,
+    });
+    
+    // Save token and user
+    localStorage.setItem('authToken', response.token);
+    localStorage.setItem('user', JSON.stringify(response.user));
+    
+    // Call context login
+    await login({ email: data.email, password: data.password });
+    
+    navigate(from === '/' ? '/dashboard' : from, { replace: true });
+  } catch (error) {
+    console.error('Login failed:', error);
+    // Show error message to user
+  } finally {
     setIsSubmitting(false);
+  }
+};
 
-    if (success) {
-      // Redirect based on role will be handled by the dashboard
-      navigate(from === '/' ? '/dashboard' : from, { replace: true });
-    }
-  };
+  // For demo credentials, create a static object:
+const demoCredentials = {
+  admin: { email: 'admin@ums.edu.my', password: 'admin123' },
+  eventManager: { email: 'manager@ums.edu.my', password: 'manager123' },
+  student: { email: 'student@ums.edu.my', password: 'student123' },
+};
 
-  const fillDemoCredentials = (type: 'admin' | 'eventManager' | 'student') => {
-    const creds = demoCredentials[type];
-    form.setValue('email', creds.email);
-    form.setValue('password', creds.password);
-  };
 
   return (
     <MainLayout>

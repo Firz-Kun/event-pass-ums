@@ -122,3 +122,12 @@ export const attendanceAPI = {
   getRecords: (eventId: string) =>
     apiCall(`/attendance/event/${eventId}`),
 };
+
+export const api = {
+  auth: authAPI,
+  events: eventsAPI,
+  users: usersAPI,
+  notifications: notificationsAPI,
+  feedback: feedbackAPI,
+  attendance: attendanceAPI,
+};

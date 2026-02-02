@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginCredentials, RegisterData, AuthState, UserRole } from '@/types/user';
-import { authAPI } from '@/services/api';
+// CHANGED: Import 'api' instead of 'authAPI' to match instruction
+import { api } from '@/services/api'; 
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType extends AuthState {
@@ -21,34 +22,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const { toast } = useToast();
 
-  // Check for existing session on mount
+  // CHANGED: Restore user directly from localStorage on mount (Instruction Logic)
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          const user = await authAPI.getCurrentUser();
-          setAuthState({
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          });
-        } catch (error) {
-          localStorage.removeItem('auth_token');
-          setAuthState((prev) => ({ ...prev, isLoading: false }));
-        }
-      } else {
+    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('authToken');
+
+    if (storedUser && token) {
+      try {
+        setAuthState({
+          user: JSON.parse(storedUser),
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      } catch (error) {
+        // If JSON parse fails, clear everything
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
         setAuthState((prev) => ({ ...prev, isLoading: false }));
       }
-    };
-    checkAuth();
+    } else {
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+    }
   }, []);
 
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
-      const { user, token } = await authAPI.login(credentials.email, credentials.password);
+      // CHANGED: Use api.auth.login and store user in localStorage
+      const response = await api.auth.login(credentials);
       
-      localStorage.setItem('auth_token', token);
+      // Assuming response contains { user, token } based on your instruction context
+      const { user, token } = response; 
+      
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
       setAuthState({
         user,
         isAuthenticated: true,
@@ -62,31 +69,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (error: any) {
+      console.error('Login failed:', error);
       toast({
         title: 'Login Failed',
-        description: error.message || 'Invalid email or password',
+        description: error.response?.data?.message || 'Invalid email or password',
         variant: 'destructive',
       });
       return false;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    setAuthState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
-    toast({
-      title: 'Logged out',
-      description: 'You have been successfully logged out',
-    });
+  const logout = async () => {
+    try {
+      // CHANGED: Call api.auth.logout()
+      await api.auth.logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      // CHANGED: Remove both authToken and user from storage
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      
+      setAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+
+      toast({
+        title: 'Logged out',
+        description: 'You have been successfully logged out',
+      });
+    }
   };
 
   const register = async (data: RegisterData): Promise<boolean> => {
     try {
-      await authAPI.register(data);
+      // CHANGED: Use api.auth.register
+      await api.auth.register(data);
       toast({
         title: 'Registration Successful',
         description: 'Your account is pending approval. You will be notified once approved.',
@@ -95,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       toast({
         title: 'Registration Failed',
-        description: error.message || 'An error occurred during registration',
+        description: error.response?.data?.message || 'An error occurred during registration',
         variant: 'destructive',
       });
       return false;
@@ -106,7 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!authState.user) return false;
 
     try {
-      const updatedUser = await authAPI.updateProfile(updates);
+      // CHANGED: Use api.users.updateProfile (or whatever your api structure is for updates)
+      // If your api.ts has a specific method for this, ensure it is called here.
+      // Assuming api.users.update based on context:
+      const updatedUser = await api.users.update(authState.user.id, updates);
+      
+      // Update state AND localStorage to keep them in sync
+      localStorage.setItem('user', JSON.stringify(updatedUser));
       setAuthState((prev) => ({ ...prev, user: updatedUser }));
 
       toast({

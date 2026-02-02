@@ -5,30 +5,56 @@ import {
   UserCheck, 
   Settings, 
   BarChart3, 
-  Shield,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle,
-  Clock
+  Shield, 
+  TrendingUp, 
+  AlertCircle, 
+  CheckCircle, 
+  Clock 
 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockEvents } from '@/data/mockEvents';
-import { mockUsers } from '@/data/mockUsers';
+import { useState, useEffect } from 'react';
+import { api, User, Event } from '@/services/api';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  
+  // 1. State for real data
+  const [users, setUsers] = useState<User[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Calculate stats
-  const totalUsers = mockUsers.length;
-  const pendingUsers = mockUsers.filter(u => u.status === 'pending').length;
-  const totalEvents = mockEvents.length;
-  const upcomingEvents = mockEvents.filter(e => e.status === 'upcoming').length;
-  const totalStudents = mockUsers.filter(u => u.role === 'student').length;
-  const totalManagers = mockUsers.filter(u => u.role === 'event_manager').length;
+  // 2. Fetch data from API on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersData, eventsData] = await Promise.all([
+          api.users.getAll(),
+          api.events.getAll(),
+        ]);
+        setUsers(usersData);
+        setEvents(eventsData);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // 3. Calculate stats using REAL data (replaced mockUsers/mockEvents)
+  const totalUsers = users.length;
+  const pendingUsers = users.filter(u => u.status === 'pending').length;
+  const totalEvents = events.length;
+  const upcomingEvents = events.filter(e => e.status === 'upcoming').length;
+  
+  const totalStudents = users.filter(u => u.role === 'student').length;
+  const totalManagers = users.filter(u => u.role === 'event_manager').length;
 
   const stats = [
     { label: 'Total Users', value: totalUsers, icon: Users, color: 'text-blue-600' },
@@ -44,7 +70,19 @@ export default function AdminDashboard() {
     { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
-  const recentUsers = mockUsers.slice(-5).reverse();
+  // Get last 5 users from real data
+  const recentUsers = users.slice(-5).reverse();
+
+  // 4. Loading State
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container py-8 flex justify-center items-center h-64">
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -155,23 +193,26 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Total Registrations</span>
                   <span className="font-bold">
-                    {mockEvents.reduce((sum, e) => sum + e.registered, 0)}
+                    {/* Updated to use 'events' state */}
+                    {events.reduce((sum, e) => sum + (e.registered || 0), 0)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Total Capacity</span>
                   <span className="font-bold">
-                    {mockEvents.reduce((sum, e) => sum + e.capacity, 0)}
+                    {/* Updated to use 'events' state */}
+                    {events.reduce((sum, e) => sum + (e.capacity || 0), 0)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Avg. Fill Rate</span>
                   <span className="font-bold">
-                    {Math.round(
-                      (mockEvents.reduce((sum, e) => sum + e.registered, 0) /
-                        mockEvents.reduce((sum, e) => sum + e.capacity, 0)) *
+                    {/* Added safety check for division by zero */}
+                    {events.length > 0 ? Math.round(
+                      (events.reduce((sum, e) => sum + (e.registered || 0), 0) /
+                        Math.max(events.reduce((sum, e) => sum + (e.capacity || 0), 0), 1)) *
                         100
-                    )}%
+                    ) : 0}%
                   </span>
                 </div>
               </div>
