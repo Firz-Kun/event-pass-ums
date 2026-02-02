@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Download, Filter, CheckCircle, Clock } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,35 +7,53 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { mockEvents } from '@/data/mockEvents';
+import { eventsAPI, attendanceAPI } from '@/services/api';
 import { Attendance } from '@/types/event';
 
-// Mock attendance data
-const mockAttendance: Attendance[] = [
-  { id: '1', eventId: '1', studentId: 'BS20110001', studentName: 'Ali bin Hassan', checkedInAt: '2024-03-15T09:15:00Z' },
-  { id: '2', eventId: '1', studentId: 'BS20110002', studentName: 'Maria Wong', checkedInAt: '2024-03-15T09:18:00Z' },
-  { id: '3', eventId: '1', studentId: 'BS20110005', studentName: 'Ahmad Razif', checkedInAt: '2024-03-15T09:22:00Z' },
-  { id: '4', eventId: '4', studentId: 'BS20110001', studentName: 'Ali bin Hassan', checkedInAt: '2024-03-18T14:05:00Z' },
-  { id: '5', eventId: '4', studentId: 'BS20110003', studentName: 'John Lim', checkedInAt: '2024-03-18T14:10:00Z' },
-];
-
 export default function AttendanceManagement() {
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const { toast } = useToast();
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch events for the dropdown
+        const eventsData = await eventsAPI.getAll();
+        setEvents(eventsData);
+
+        // Note: You'll need to implement an endpoint to get all attendance records
+        // For now, this will fetch attendance for each event individually
+        const attendancePromises = eventsData.map(event => 
+          attendanceAPI.getRecords(event.id).catch(() => [])
+        );
+        const attendanceArrays = await Promise.all(attendancePromises);
+        const allAttendance = attendanceArrays.flat();
+        setAttendance(allAttendance);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const filteredAttendance = useMemo(() => {
-    return mockAttendance.filter((record) => {
+    return attendance.filter((record) => {
       const matchesSearch =
-        record.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.studentId.toLowerCase().includes(searchQuery.toLowerCase());
+        record.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.studentId?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesEvent = selectedEvent === 'all' || record.eventId === selectedEvent;
       return matchesSearch && matchesEvent;
     });
-  }, [searchQuery, selectedEvent]);
+  }, [attendance, searchQuery, selectedEvent]);
 
   const getEventName = (eventId: string) => {
-    return mockEvents.find((e) => e.id === eventId)?.title || 'Unknown Event';
+    return events.find((e) => e.id === eventId)?.title || 'Unknown Event';
   };
 
   const exportToCSV = () => {
@@ -65,6 +83,19 @@ export default function AttendanceManagement() {
   const uniqueStudents = new Set(filteredAttendance.map((a) => a.studentId)).size;
   const uniqueEvents = new Set(filteredAttendance.map((a) => a.eventId)).size;
 
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading attendance...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="container py-8">
@@ -73,7 +104,7 @@ export default function AttendanceManagement() {
             <h1 className="font-serif text-3xl font-bold text-foreground">Attendance Management</h1>
             <p className="text-muted-foreground">Track and export event attendance records</p>
           </div>
-          <Button onClick={exportToCSV}>
+          <Button onClick={exportToCSV} disabled={filteredAttendance.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
@@ -135,7 +166,7 @@ export default function AttendanceManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Events</SelectItem>
-                  {mockEvents.map((event) => (
+                  {events.map((event) => (
                     <SelectItem key={event.id} value={event.id}>
                       {event.title}
                     </SelectItem>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Check, CheckCheck, Trash2, Filter } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,49 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { notificationsAPI } from '@/services/api';
 import { Notification, NotificationType } from '@/types/notification';
-
-// Mock notifications
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    userId: 'student-1',
-    type: 'event_reminder',
-    title: 'Event Reminder: AI & Machine Learning Workshop',
-    message: 'Don\'t forget! The workshop starts tomorrow at 2:00 PM in Computer Lab 3.',
-    eventId: '4',
-    isRead: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    userId: 'student-1',
-    type: 'new_event',
-    title: 'New Event: Career Fair 2024',
-    message: 'A new career event has been posted. Meet top employers from various industries!',
-    eventId: '8',
-    isRead: false,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: '3',
-    userId: 'student-1',
-    type: 'announcement',
-    title: 'System Maintenance Notice',
-    message: 'The EMaS system will undergo maintenance on Sunday from 2:00 AM to 6:00 AM.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-  {
-    id: '4',
-    userId: 'student-1',
-    type: 'event_cancelled',
-    title: 'Event Cancelled: Outdoor Movie Night',
-    message: 'Due to weather conditions, the Outdoor Movie Night has been cancelled. We apologize for any inconvenience.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-  },
-];
 
 const getTypeIcon = (type: NotificationType) => {
   switch (type) {
@@ -82,28 +41,58 @@ const getTypeBadge = (type: NotificationType) => {
 };
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const data = await notificationsAPI.getAll();
+        setNotifications(data);
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+  const unreadCount = notifications.filter((n) => !n.read_status).length;
+
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationsAPI.markAsRead(id);
+      setNotifications(notifications.map((n) => (n.id === id ? { ...n, read_status: true } : n)));
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
-    toast({
-      title: 'All Marked as Read',
-      description: 'All notifications have been marked as read',
-    });
+  const markAllAsRead = async () => {
+    try {
+      // Mark all unread notifications as read
+      const unreadIds = notifications.filter(n => !n.read_status).map(n => n.id);
+      await Promise.all(unreadIds.map(id => notificationsAPI.markAsRead(id)));
+      
+      setNotifications(notifications.map((n) => ({ ...n, read_status: true })));
+      toast({
+        title: 'All Marked as Read',
+        description: 'All notifications have been marked as read',
+      });
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
   };
 
   const deleteNotification = (id: string) => {
+    // Note: Delete functionality would need a backend endpoint
     setNotifications(notifications.filter((n) => n.id !== id));
   };
 
   const clearAll = () => {
+    // Note: Clear all functionality would need a backend endpoint
     setNotifications([]);
     toast({
       title: 'Notifications Cleared',
@@ -125,8 +114,21 @@ export default function Notifications() {
     return date.toLocaleDateString();
   };
 
-  const unreadNotifications = notifications.filter((n) => !n.isRead);
-  const readNotifications = notifications.filter((n) => n.isRead);
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading notifications...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const unreadNotifications = notifications.filter((n) => !n.read_status);
+  const readNotifications = notifications.filter((n) => n.read_status);
 
   return (
     <MainLayout>
@@ -210,7 +212,7 @@ function NotificationList({
       {notifications.map((notification) => (
         <Card
           key={notification.id}
-          className={notification.isRead ? 'opacity-75' : 'border-primary/50 bg-primary/5'}
+          className={notification.read_status ? 'opacity-75' : 'border-primary/50 bg-primary/5'}
         >
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
@@ -223,10 +225,10 @@ function NotificationList({
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{notification.message}</p>
-                <p className="mt-2 text-xs text-muted-foreground">{formatDate(notification.createdAt)}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{formatDate(notification.created_at)}</p>
               </div>
               <div className="flex gap-1">
-                {!notification.isRead && (
+                {!notification.read_status && (
                   <Button variant="ghost" size="icon" onClick={() => onMarkAsRead(notification.id)}>
                     <Check className="h-4 w-4" />
                   </Button>

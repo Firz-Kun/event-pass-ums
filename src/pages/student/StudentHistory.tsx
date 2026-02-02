@@ -1,15 +1,54 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, History, QrCode } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockEvents } from '@/data/mockEvents';
+import { eventsAPI } from '@/services/api';
 
 export default function StudentHistory() {
-  // Mock attended events - in real app would come from attendance records
-  const attendedEventIds = ['1', '4', '5'];
-  const attendedEvents = mockEvents.filter((e) => attendedEventIds.includes(e.id));
+  const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        // Note: You'll need to create an endpoint to get user's attended events
+        // For now, this is a placeholder
+        // const data = await eventsAPI.getAttendedEvents();
+        
+        // Temporary: Fetch all events and simulate attendance
+        // In production, this would come from attendance_records table
+        const allEvents = await eventsAPI.getAll();
+        
+        // Mock: Simulate some attended events
+        // Replace this with actual API call when backend is ready
+        const mockAttendedIds = []; // Empty for now
+        const attended = allEvents.filter((e: any) => mockAttendedIds.includes(e.id));
+        
+        setAttendedEvents(attended);
+      } catch (error) {
+        console.error('Failed to fetch history:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading history...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

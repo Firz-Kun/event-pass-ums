@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Calendar,
@@ -13,14 +14,47 @@ import {
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockEvents, getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
+import { eventsAPI } from '@/services/api';
+import { getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
 import { cn } from '@/lib/utils';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const event = mockEvents.find((e) => e.id === id);
+  const [event, setEvent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  if (!event) {
+  useEffect(() => {
+    const fetchEvent = async () => {
+      if (!id) return;
+      
+      try {
+        const data = await eventsAPI.getById(id);
+        setEvent(data);
+      } catch (error) {
+        console.error('Failed to fetch event:', error);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvent();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading event...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error || !event) {
     return (
       <MainLayout>
         <div className="container flex flex-col items-center justify-center py-24 text-center">
@@ -39,8 +73,8 @@ const EventDetail = () => {
     );
   }
 
-  const spotsLeft = event.capacity - event.registered;
-  const percentFilled = (event.registered / event.capacity) * 100;
+  const spotsLeft = event.capacity - event.registered_count;
+  const percentFilled = (event.registered_count / event.capacity) * 100;
   const qrValue = `ums-emas://checkin/${event.id}`;
 
   const handleDownloadQR = () => {
@@ -68,7 +102,7 @@ const EventDetail = () => {
       {/* Hero Image */}
       <div className="relative h-64 sm:h-80 lg:h-96">
         <img
-          src={event.imageUrl}
+          src={event.image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop'}
           alt={event.title}
           className="h-full w-full object-cover"
         />
@@ -143,7 +177,7 @@ const EventDetail = () => {
                   />
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {event.registered} of {event.capacity} registered
+                  {event.registered_count} of {event.capacity} registered
                 </p>
               </div>
 

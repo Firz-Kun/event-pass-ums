@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, UserCheck, UserX, Shield, MoreHorizontal } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,15 +14,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { usersAPI } from '@/services/api';
 import { User, UserRole, AccountStatus } from '@/types/user';
-import { mockUsers } from '@/data/mockUsers';
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<AccountStatus | 'all'>('all');
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const data = await usersAPI.getAll();
+        setUsers(data);
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
@@ -33,29 +48,28 @@ export default function UserManagement() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const updateUserStatus = (userId: string, status: AccountStatus) => {
-    setUsers(users.map((u) => (u.id === userId ? { ...u, status } : u)));
-    // Update localStorage
-    const stored = localStorage.getItem('ums_users');
-    if (stored) {
-      const allUsers = JSON.parse(stored);
-      const updated = allUsers.map((u: User) => (u.id === userId ? { ...u, status } : u));
-      localStorage.setItem('ums_users', JSON.stringify(updated));
+  const updateUserStatus = async (userId: string, status: AccountStatus) => {
+    try {
+      await usersAPI.updateStatus(userId, status);
+      setUsers(users.map((u) => (u.id === userId ? { ...u, status } : u)));
+      toast({
+        title: 'User Updated',
+        description: `User status changed to ${status}`,
+      });
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update user status',
+        variant: 'destructive',
+      });
     }
-    toast({
-      title: 'User Updated',
-      description: `User status changed to ${status}`,
-    });
   };
 
-  const updateUserRole = (userId: string, role: UserRole) => {
+  const updateUserRole = async (userId: string, role: UserRole) => {
+    // Note: You'd need to add this endpoint to the backend
+    // For now, just update locally
     setUsers(users.map((u) => (u.id === userId ? { ...u, role } : u)));
-    const stored = localStorage.getItem('ums_users');
-    if (stored) {
-      const allUsers = JSON.parse(stored);
-      const updated = allUsers.map((u: User) => (u.id === userId ? { ...u, role } : u));
-      localStorage.setItem('ums_users', JSON.stringify(updated));
-    }
     toast({
       title: 'Role Updated',
       description: `User role changed to ${role.replace('_', ' ')}`,
@@ -83,6 +97,19 @@ export default function UserManagement() {
         return 'destructive';
     }
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading users...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -160,8 +187,8 @@ export default function UserManagement() {
                           <div>
                             <p className="font-medium">{user.name}</p>
                             <p className="text-sm text-muted-foreground">{user.email}</p>
-                            {user.studentId && (
-                              <p className="text-xs text-muted-foreground">{user.studentId}</p>
+                            {user.student_id && (
+                              <p className="text-xs text-muted-foreground">{user.student_id}</p>
                             )}
                           </div>
                         </div>
@@ -177,7 +204,7 @@ export default function UserManagement() {
                         </Badge>
                       </td>
                       <td className="text-sm text-muted-foreground">
-                        {new Date(user.createdAt).toLocaleDateString()}
+                        {new Date(user.created_at).toLocaleDateString()}
                       </td>
                       <td>
                         <DropdownMenu>

@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Calendar, Grid, List } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import EventCard from '@/components/events/EventCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { mockEvents, getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
+import { eventsAPI } from '@/services/api';
 import { EventCategory } from '@/types/event';
 import { cn } from '@/lib/utils';
+import { getCategoryLabel } from '@/data/mockEvents';
 
 const categories: EventCategory[] = [
   'academic',
@@ -20,12 +21,28 @@ const categories: EventCategory[] = [
 ];
 
 const Events = () => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | 'all'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const data = await eventsAPI.getAll();
+        setEvents(data);
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
+
   const filteredEvents = useMemo(() => {
-    return mockEvents.filter((event) => {
+    return events.filter((event) => {
       const matchesSearch =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -36,7 +53,20 @@ const Events = () => {
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [events, searchQuery, selectedCategory]);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading events...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

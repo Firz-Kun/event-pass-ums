@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, QrCode, Copy, MoreHorizontal, XCircle } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
@@ -25,15 +25,31 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { mockEvents, getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
+import { eventsAPI } from '@/services/api';
+import { getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
 import { Event, EventStatus } from '@/types/event';
 
 export default function ManageEvents() {
-  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'all'>('all');
   const [deleteEvent, setDeleteEvent] = useState<Event | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const data = await eventsAPI.getAll();
+        setEvents(data);
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
 
   const filteredEvents = events.filter((event) => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -41,36 +57,69 @@ export default function ManageEvents() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDelete = (event: Event) => {
-    setEvents(events.filter((e) => e.id !== event.id));
-    setDeleteEvent(null);
-    toast({
-      title: 'Event Deleted',
-      description: `"${event.title}" has been deleted`,
-    });
+  const handleDelete = async (event: Event) => {
+    try {
+      await eventsAPI.delete(event.id);
+      setEvents(events.filter((e) => e.id !== event.id));
+      setDeleteEvent(null);
+      toast({
+        title: 'Event Deleted',
+        description: `"${event.title}" has been deleted`,
+      });
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete event',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDuplicate = (event: Event) => {
-    const duplicated: Event = {
-      ...event,
-      id: `event-${Date.now()}`,
-      title: `${event.title} (Copy)`,
-      registered: 0,
-      status: 'upcoming',
-    };
-    setEvents([...events, duplicated]);
-    toast({
-      title: 'Event Duplicated',
-      description: 'A copy of the event has been created',
-    });
+  const handleDuplicate = async (event: Event) => {
+    try {
+      const duplicated = {
+        ...event,
+        title: `${event.title} (Copy)`,
+        registered_count: 0,
+        status: 'upcoming' as EventStatus,
+      };
+      
+      const newEvent = await eventsAPI.create(duplicated);
+      setEvents([...events, newEvent]);
+      toast({
+        title: 'Event Duplicated',
+        description: 'A copy of the event has been created',
+      });
+    } catch (error) {
+      console.error('Failed to duplicate event:', error);
+      toast({
+        title: 'Duplication Failed',
+        description: 'Failed to duplicate event',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleStatusChange = (eventId: string, status: EventStatus) => {
-    setEvents(events.map((e) => (e.id === eventId ? { ...e, status } : e)));
-    toast({
-      title: 'Status Updated',
-      description: `Event status changed to ${status}`,
-    });
+  const handleStatusChange = async (eventId: string, status: EventStatus) => {
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) return;
+
+      await eventsAPI.update(eventId, { ...event, status });
+      setEvents(events.map((e) => (e.id === eventId ? { ...e, status } : e)));
+      toast({
+        title: 'Status Updated',
+        description: `Event status changed to ${status}`,
+      });
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update event status',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getStatusBadgeVariant = (status: EventStatus) => {
@@ -85,6 +134,19 @@ export default function ManageEvents() {
         return 'destructive';
     }
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="container flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading events...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -169,7 +231,7 @@ export default function ManageEvents() {
                         </Badge>
                       </td>
                       <td>
-                        <span className="font-medium">{event.registered}</span>
+                        <span className="font-medium">{event.registered_count || 0}</span>
                         <span className="text-muted-foreground">/{event.capacity}</span>
                       </td>
                       <td>

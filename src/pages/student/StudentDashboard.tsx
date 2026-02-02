@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Calendar, 
@@ -14,15 +15,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockEvents } from '@/data/mockEvents';
+import { eventsAPI } from '@/services/api';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Demo data - in real app would come from attendance records
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const data = await eventsAPI.getAll();
+        // Filter for upcoming events only
+        const upcomingEvents = data.filter((e: any) => e.status === 'upcoming').slice(0, 3);
+        setEvents(upcomingEvents);
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEvents();
+  }, []);
+
+  // Demo data - in real app would come from attendance/registration records
   const attendedEvents = 5;
   const upcomingRegistered = 3;
-  const upcomingEvents = mockEvents.filter(e => e.status === 'upcoming').slice(0, 3);
 
   const stats = [
     { label: 'Events Attended', value: attendedEvents, icon: CheckCircle, color: 'text-green-600' },
@@ -37,8 +55,8 @@ export default function StudentDashboard() {
         <div className="mb-8">
           <h1 className="font-serif text-3xl font-bold text-foreground">Student Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.name}</p>
-          {user?.studentId && (
-            <p className="text-sm text-muted-foreground">Student ID: {user.studentId}</p>
+          {user?.student_id && (
+            <p className="text-sm text-muted-foreground">Student ID: {user.student_id}</p>
           )}
         </div>
 
@@ -103,32 +121,48 @@ export default function StudentDashboard() {
               <CardDescription>Events happening soon on campus</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {upcomingEvents.map((event) => (
-                  <div key={event.id} className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(event.date).toLocaleDateString()} at {event.time}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{event.venue}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="secondary" className="mb-2">
-                        {event.registered}/{event.capacity}
-                      </Badge>
-                      <div>
-                        <Button size="sm" asChild>
-                          <Link to={`/events/${event.id}`}>View Details</Link>
-                        </Button>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+                </div>
+              ) : events.length > 0 ? (
+                <>
+                  <div className="space-y-4">
+                    {events.map((event) => (
+                      <div key={event.id} className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{event.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(event.date).toLocaleDateString()} at {event.time}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{event.venue}</p>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant="secondary" className="mb-2">
+                            {event.registered_count || 0}/{event.capacity}
+                          </Badge>
+                          <div>
+                            <Button size="sm" asChild>
+                              <Link to={`/events/${event.id}`}>View Details</Link>
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <Button variant="outline" className="mt-4 w-full" asChild>
-                <Link to="/events">View All Events</Link>
-              </Button>
+                  <Button variant="outline" className="mt-4 w-full" asChild>
+                    <Link to="/events">View All Events</Link>
+                  </Button>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-muted-foreground/50 mx-auto mb-2" />
+                  <p className="text-muted-foreground">No upcoming events</p>
+                  <Button variant="outline" className="mt-4" asChild>
+                    <Link to="/events">Browse Events</Link>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
