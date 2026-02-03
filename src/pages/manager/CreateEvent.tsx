@@ -13,6 +13,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { EventCategory } from '@/types/event';
+// 1. IMPORT THE REAL API
+import { eventsAPI } from '@/services/api'; 
 
 const eventSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(100),
@@ -56,31 +58,35 @@ export default function CreateEvent() {
 
   const onSubmit = async (data: EventFormData) => {
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Create event in localStorage
-    const storedEvents = localStorage.getItem('ums_events');
-    const events = storedEvents ? JSON.parse(storedEvents) : [];
-    
-    const newEvent = {
-      id: `event-${Date.now()}`,
-      ...data,
-      registered: 0,
-      imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop',
-      organizer: 'Current User', // In real app, get from auth context
-      status: 'upcoming',
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      // 2. USE THE REAL API CALL
+      // We add a default image because the database expects it
+      const eventData = {
+        ...data,
+        imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop',
+        organizer: 'UMS Event Management', // Or get from user context
+      };
 
-    events.push(newEvent);
-    localStorage.setItem('ums_events', JSON.stringify(events));
+      await eventsAPI.create(eventData);
 
-    setIsSubmitting(false);
-    toast({
-      title: 'Event Created',
-      description: 'Your event has been created successfully',
-    });
-    navigate('/manager/events');
+      toast({
+        title: 'Event Created',
+        description: 'Your event has been saved to the database successfully',
+      });
+      
+      navigate('/manager/events'); // Or '/admin/events' depending on your route
+      
+    } catch (error) {
+      console.error("Create Failed:", error);
+      toast({
+        title: 'Creation Failed',
+        description: 'Could not save to the database. Check console.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

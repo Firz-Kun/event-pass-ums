@@ -9,7 +9,8 @@ export type { Event } from '@/types/event';
 
 // Generic API call function
 async function apiCall(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('authToken');
+  console.log("🔑 API Token Check:", token ? "Found It!" : "MISSING - This is why it fails");
   
   const headers = {
     'Content-Type': 'application/json',
@@ -52,7 +53,11 @@ export const authAPI = {
       body: JSON.stringify(updates),
     }),
 
-  logout: () => Promise.resolve(), // Client-side logout, no API call needed
+  logout: () => {
+    localStorage.removeItem('auth_token'); // Or 'token'
+    localStorage.removeItem('token');      // Clear both to be safe
+    return Promise.resolve();
+  },
 };
 
 // Events API
