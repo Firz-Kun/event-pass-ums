@@ -231,7 +231,7 @@ export default function ManageEvents() {
                         </Badge>
                       </td>
                       <td>
-                        <span className="font-medium">{event.registered_count || 0}</span>
+                        <span className="font-medium">{event.registered || 0}</span>
                         <span className="text-muted-foreground">/{event.capacity}</span>
                       </td>
                       <td>

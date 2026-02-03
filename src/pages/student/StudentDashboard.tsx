@@ -55,8 +55,8 @@ export default function StudentDashboard() {
         <div className="mb-8">
           <h1 className="font-serif text-3xl font-bold text-foreground">Student Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.name}</p>
-          {user?.student_id && (
-            <p className="text-sm text-muted-foreground">Student ID: {user.student_id}</p>
+          {user?.studentId && (
+            <p className="text-sm text-muted-foreground">Student ID: {user.studentId}</p>
           )}
         </div>
 
@@ -139,7 +139,7 @@ export default function StudentDashboard() {
                         </div>
                         <div className="text-right">
                           <Badge variant="secondary" className="mb-2">
-                            {event.registered_count || 0}/{event.capacity}
+                            {event.registered || 0}/{event.capacity}
                           </Badge>
                           <div>
                             <Button size="sm" asChild>
