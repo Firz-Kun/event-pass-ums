@@ -220,7 +220,10 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
 app.get('/api/events', async (req, res) => {
   try {
     const { status, category } = req.query;
-    
+
+    console.log("🔍 DEBUG: Fetching Events...");
+    console.log("👉 Filters received:", req.query); // See what frontend is asking for
+
     let query = 'SELECT * FROM events';
     const conditions = [];
     const params = [];
@@ -240,8 +243,14 @@ app.get('/api/events', async (req, res) => {
     }
 
     query += ' ORDER BY date ASC';
+    
+    console.log("👉 SQL Query:", query);      // See the actual SQL
+    console.log("👉 Params:", params);
 
     const [events] = await pool.query(query, params);
+    
+    console.log(`✅ Found ${events.length} events`); // Did we find anything?
+
     res.json(events);
   } catch (error) {
     console.error('Get events error:', error);
