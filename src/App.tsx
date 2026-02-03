@@ -24,6 +24,8 @@ import Dashboard from "./pages/Dashboard";
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserManagement from "./pages/admin/UserManagement";
+import AdminEvents from "./pages/admin/AdminEvents";
+import Reports from "./pages/admin/Reports";
 
 // Manager Pages
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
@@ -101,6 +103,22 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/events"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminEvents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Reports />
                 </ProtectedRoute>
               }
             />

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, LoginCredentials, RegisterData, AuthState, UserRole } from '@/types/user';
-// CHANGED: Import 'api' instead of 'authAPI' to match instruction
 import { api } from '@/services/api'; 
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const { toast } = useToast();
 
-  // CHANGED: Restore user directly from localStorage on mount (Instruction Logic)
+  // Restore user directly from localStorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('authToken');
@@ -35,7 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isLoading: false,
         });
       } catch (error) {
-        // If JSON parse fails, clear everything
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
         setAuthState((prev) => ({ ...prev, isLoading: false }));
@@ -47,10 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
-      // CHANGED: Use api.auth.login and store user in localStorage
       const response = await api.auth.login(credentials);
       
-      // Assuming response contains { user, token } based on your instruction context
       const { user, token } = response; 
       
       localStorage.setItem('authToken', token);
@@ -81,12 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      // CHANGED: Call api.auth.logout()
       await api.auth.logout();
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
-      // CHANGED: Remove both authToken and user from storage
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       
@@ -105,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterData): Promise<boolean> => {
     try {
-      // CHANGED: Use api.auth.register
       await api.auth.register(data);
       toast({
         title: 'Registration Successful',
@@ -126,12 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!authState.user) return false;
 
     try {
-      // CHANGED: Use api.users.updateProfile (or whatever your api structure is for updates)
-      // If your api.ts has a specific method for this, ensure it is called here.
-      // Assuming api.users.update based on context:
       const updatedUser = await api.users.update(authState.user.id, updates);
       
-      // Update state AND localStorage to keep them in sync
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setAuthState((prev) => ({ ...prev, user: updatedUser }));
 

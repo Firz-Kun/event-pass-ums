@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Bell, Check, CheckCheck, Trash2, Filter } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2 } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -59,12 +59,12 @@ export default function Notifications() {
     fetchNotifications();
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read_status).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const markAsRead = async (id: string) => {
     try {
       await notificationsAPI.markAsRead(id);
-      setNotifications(notifications.map((n) => (n.id === id ? { ...n, read_status: true } : n)));
+      setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     } catch (error) {
       console.error('Failed to mark as read:', error);
     }
@@ -72,11 +72,10 @@ export default function Notifications() {
 
   const markAllAsRead = async () => {
     try {
-      // Mark all unread notifications as read
-      const unreadIds = notifications.filter(n => !n.read_status).map(n => n.id);
+      const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
       await Promise.all(unreadIds.map(id => notificationsAPI.markAsRead(id)));
       
-      setNotifications(notifications.map((n) => ({ ...n, read_status: true })));
+      setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
       toast({
         title: 'All Marked as Read',
         description: 'All notifications have been marked as read',
@@ -87,12 +86,10 @@ export default function Notifications() {
   };
 
   const deleteNotification = (id: string) => {
-    // Note: Delete functionality would need a backend endpoint
     setNotifications(notifications.filter((n) => n.id !== id));
   };
 
   const clearAll = () => {
-    // Note: Clear all functionality would need a backend endpoint
     setNotifications([]);
     toast({
       title: 'Notifications Cleared',
@@ -127,8 +124,8 @@ export default function Notifications() {
     );
   }
 
-  const unreadNotifications = notifications.filter((n) => !n.read_status);
-  const readNotifications = notifications.filter((n) => n.read_status);
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
+  const readNotifications = notifications.filter((n) => n.isRead);
 
   return (
     <MainLayout>
@@ -212,7 +209,7 @@ function NotificationList({
       {notifications.map((notification) => (
         <Card
           key={notification.id}
-          className={notification.read_status ? 'opacity-75' : 'border-primary/50 bg-primary/5'}
+          className={notification.isRead ? 'opacity-75' : 'border-primary/50 bg-primary/5'}
         >
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
@@ -225,10 +222,10 @@ function NotificationList({
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{notification.message}</p>
-                <p className="mt-2 text-xs text-muted-foreground">{formatDate(notification.created_at)}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{formatDate(notification.createdAt)}</p>
               </div>
               <div className="flex gap-1">
-                {!notification.read_status && (
+                {!notification.isRead && (
                   <Button variant="ghost" size="icon" onClick={() => onMarkAsRead(notification.id)}>
                     <Check className="h-4 w-4" />
                   </Button>

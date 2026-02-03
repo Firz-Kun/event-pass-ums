@@ -187,8 +187,8 @@ export default function UserManagement() {
                           <div>
                             <p className="font-medium">{user.name}</p>
                             <p className="text-sm text-muted-foreground">{user.email}</p>
-                            {user.student_id && (
-                              <p className="text-xs text-muted-foreground">{user.student_id}</p>
+                            {user.studentId && (
+                              <p className="text-xs text-muted-foreground">{user.studentId}</p>
                             )}
                           </div>
                         </div>
@@ -204,7 +204,7 @@ export default function UserManagement() {
                         </Badge>
                       </td>
                       <td className="text-sm text-muted-foreground">
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {new Date(user.createdAt).toLocaleDateString()}
                       </td>
                       <td>
                         <DropdownMenu>

@@ -17,7 +17,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
-import { api, User, Event } from '@/services/api';
+import { api } from '@/services/api';
+import { User } from '@/types/user';
+import { Event } from '@/types/event';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -67,7 +69,6 @@ export default function AdminDashboard() {
     { label: 'Manage Users', href: '/admin/users', icon: Users },
     { label: 'View All Events', href: '/admin/events', icon: Calendar },
     { label: 'System Reports', href: '/admin/reports', icon: BarChart3 },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   // Get last 5 users from real data

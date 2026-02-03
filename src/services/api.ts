@@ -1,4 +1,11 @@
+import { User } from '@/types/user';
+import { Event } from '@/types/event';
+
 const API_URL = 'http://localhost:3001/api'; // Your backend URL
+
+// Re-export types for convenience
+export type { User } from '@/types/user';
+export type { Event } from '@/types/event';
 
 // Generic API call function
 async function apiCall(endpoint: string, options: RequestInit = {}) {
@@ -25,10 +32,10 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
 
 // Auth API
 export const authAPI = {
-  login: (email: string, password: string) =>
+  login: (credentials: { email: string; password: string }) =>
     apiCall('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(credentials),
     }),
 
   register: (data: any) =>
@@ -44,6 +51,8 @@ export const authAPI = {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
+
+  logout: () => Promise.resolve(), // Client-side logout, no API call needed
 };
 
 // Events API
@@ -82,10 +91,23 @@ export const eventsAPI = {
 export const usersAPI = {
   getAll: () => apiCall('/users'),
   
+  getById: (userId: string) => apiCall(`/users/${userId}`),
+
+  update: (userId: string, updates: Partial<User>) =>
+    apiCall(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
+  
   updateStatus: (userId: string, status: string) =>
     apiCall(`/users/${userId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    }),
+
+  delete: (userId: string) =>
+    apiCall(`/users/${userId}`, {
+      method: 'DELETE',
     }),
 };
 
