@@ -15,7 +15,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { eventsAPI } from '@/services/api';
-import { getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
+import { getCategoryColor, getCategoryLabel } from '@/lib/categoryUtils';
 import { cn } from '@/lib/utils';
 
 const EventDetail = () => {

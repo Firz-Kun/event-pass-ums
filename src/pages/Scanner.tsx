@@ -4,9 +4,9 @@ import { Camera, CheckCircle2, XCircle, RefreshCw, QrCode } from 'lucide-react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { mockEvents } from '@/data/mockEvents';
+import { api } from '@/services/api'; // Import your API
 
-type ScanStatus = 'idle' | 'scanning' | 'success' | 'error';
+type ScanStatus = 'idle' | 'scanning' | 'success' | 'error' | 'loading';
 
 interface ScanResult {
   status: ScanStatus;
@@ -76,32 +76,45 @@ const Scanner = () => {
     setIsScanning(false);
   };
 
-  const handleScanResult = (text: string) => {
+  const handleScanResult = async (qrCode: string) => {
     stopScanning();
 
-    // Parse the QR code - expected format: ums-emas://checkin/{eventId}
-    const match = text.match(/ums-emas:\/\/checkin\/(.+)/);
-    
-    if (match) {
-      const eventId = match[1];
-      const event = mockEvents.find((e) => e.id === eventId);
+    // Show loading state
+    setScanResult({
+      status: 'loading',
+      message: 'Processing check-in...',
+    });
+
+    try {
+      // Call the attendance check-in API
+      const response = await api.attendance.checkIn(qrCode);
       
-      if (event) {
-        setScanResult({
-          status: 'success',
-          message: 'Check-in successful!',
-          eventTitle: event.title,
-        });
-      } else {
-        setScanResult({
-          status: 'error',
-          message: 'Event not found. The QR code may be invalid.',
-        });
+      // Assuming the API returns something like:
+      // { success: true, message: string, event: { title: string, ... } }
+      setScanResult({
+        status: 'success',
+        message: response.message || 'Check-in successful!',
+        eventTitle: response.event?.title || response.eventTitle,
+      });
+    } catch (error: any) {
+      console.error('Check-in error:', error);
+      
+      // Handle different error scenarios
+      let errorMessage = 'Check-in failed. Please try again.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.toString().includes('Invalid QR code')) {
+        errorMessage = 'Invalid QR code format. Please scan a valid UMS event QR code.';
+      } else if (error.toString().includes('Event not found')) {
+        errorMessage = 'Event not found. The QR code may be invalid or expired.';
+      } else if (error.toString().includes('already checked in')) {
+        errorMessage = 'You have already checked in to this event.';
       }
-    } else {
+      
       setScanResult({
         status: 'error',
-        message: 'Invalid QR code format. Please scan a valid UMS event QR code.',
+        message: errorMessage,
       });
     }
   };
@@ -139,6 +152,7 @@ const Scanner = () => {
                   scanResult.status === 'success' && 'border-green-500 bg-green-50',
                   scanResult.status === 'error' && 'border-destructive bg-destructive/5',
                   scanResult.status === 'scanning' && 'border-primary',
+                  scanResult.status === 'loading' && 'border-blue-500 bg-blue-50',
                   scanResult.status === 'idle' && 'border-border bg-muted/30'
                 )}
               >
@@ -163,7 +177,14 @@ const Scanner = () => {
                   
                   {!isScanning && hasCamera !== false && (
                     <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-                      {scanResult.status === 'success' ? (
+                      {scanResult.status === 'loading' ? (
+                        <>
+                          <div className="h-20 w-20 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                          <p className="mt-4 text-muted-foreground">
+                            {scanResult.message}
+                          </p>
+                        </>
+                      ) : scanResult.status === 'success' ? (
                         <>
                           <CheckCircle2 className="h-20 w-20 text-green-500" />
                           <h3 className="mt-4 font-serif text-2xl font-bold text-green-700">
@@ -207,7 +228,7 @@ const Scanner = () => {
 
               {/* Controls */}
               <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:justify-center">
-                {!isScanning ? (
+                {!isScanning && scanResult.status !== 'loading' ? (
                   <>
                     {(scanResult.status === 'success' || scanResult.status === 'error') && (
                       <Button
@@ -230,7 +251,7 @@ const Scanner = () => {
                       {scanResult.status === 'idle' ? 'Start Scanning' : 'Scan Again'}
                     </Button>
                   </>
-                ) : (
+                ) : isScanning ? (
                   <Button
                     variant="destructive"
                     size="lg"
@@ -240,7 +261,7 @@ const Scanner = () => {
                     <XCircle className="h-4 w-4" />
                     Stop Scanning
                   </Button>
-                )}
+                ) : null}
               </div>
             </div>
 

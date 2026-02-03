@@ -146,7 +146,7 @@ app.post('/api/auth/register', async (req, res) => {
     // Insert new user
     await pool.query(
       `INSERT INTO users (id, email, password, name, role, status, student_id, faculty, email_verified) 
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, FALSE)`,
+       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, FALSE)`,
       [userId, email, hashedPassword, name, role || 'student', studentId, faculty]
     );
 

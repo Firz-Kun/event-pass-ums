@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { eventsAPI } from '@/services/api';
 import { EventCategory } from '@/types/event';
 import { cn } from '@/lib/utils';
-import { getCategoryLabel } from '@/data/mockEvents';
+import { getCategoryLabel } from '@/lib/categoryUtils';
 
 const categories: EventCategory[] = [
   'academic',

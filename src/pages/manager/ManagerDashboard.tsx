@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Calendar, 
@@ -14,21 +15,56 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockEvents } from '@/data/mockEvents';
-import EventCard from '@/components/events/EventCard';
+import { api } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
+
+interface Event {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  status: string;
+  registered: number;
+  capacity: number;
+  category?: string;
+}
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [myEvents, setMyEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // For demo, show all events as if managed by current user
-  const myEvents = mockEvents;
+  // Fetch events from API
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setIsLoading(true);
+        const events = await api.events.getAll();
+        setMyEvents(events);
+      } catch (error: any) {
+        console.error('Error fetching events:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load events. Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, [toast]);
+
+  // Calculate stats from real data
   const upcomingEvents = myEvents.filter(e => e.status === 'upcoming').slice(0, 3);
-  const totalRegistrations = myEvents.reduce((sum, e) => sum + e.registered, 0);
-  const avgFillRate = Math.round(
-    (myEvents.reduce((sum, e) => sum + e.registered, 0) /
-      myEvents.reduce((sum, e) => sum + e.capacity, 0)) *
-      100
-  );
+  const totalRegistrations = myEvents.reduce((sum, e) => sum + (e.registered || 0), 0);
+  const totalCapacity = myEvents.reduce((sum, e) => sum + (e.capacity || 0), 0);
+  const avgFillRate = totalCapacity > 0 
+    ? Math.round((totalRegistrations / totalCapacity) * 100) 
+    : 0;
 
   const stats = [
     { label: 'My Events', value: myEvents.length, icon: Calendar, color: 'text-blue-600' },
@@ -36,6 +72,21 @@ export default function ManagerDashboard() {
     { label: 'Upcoming', value: upcomingEvents.length, icon: Clock, color: 'text-orange-600' },
     { label: 'Avg. Fill Rate', value: `${avgFillRate}%`, icon: TrendingUp, color: 'text-purple-600' },
   ];
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+              <p className="text-muted-foreground">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -127,7 +178,7 @@ export default function ManagerDashboard() {
                       </div>
                       <div className="text-right">
                         <Badge variant="secondary">
-                          {event.registered}/{event.capacity} registered
+                          {event.registered || 0}/{event.capacity || 0} registered
                         </Badge>
                         <div className="mt-2 flex gap-2">
                           <Button size="sm" variant="outline" asChild>
@@ -166,23 +217,27 @@ export default function ManagerDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 text-sm">
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span>5 new registrations for "AI & Machine Learning Workshop"</span>
-                <span className="text-muted-foreground">2 hours ago</span>
+            {myEvents.length > 0 ? (
+              <div className="space-y-4">
+                {myEvents.slice(0, 3).map((event, index) => (
+                  <div key={event.id} className="flex items-center gap-4 text-sm">
+                    <div className={`h-2 w-2 rounded-full ${
+                      index === 0 ? 'bg-green-500' : 
+                      index === 1 ? 'bg-blue-500' : 
+                      'bg-purple-500'
+                    }`} />
+                    <span>{event.registered || 0} registrations for "{event.title}"</span>
+                    <span className="text-muted-foreground ml-auto">
+                      {new Date(event.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="h-2 w-2 rounded-full bg-blue-500" />
-                <span>Event "UMS Innovation Summit" created successfully</span>
-                <span className="text-muted-foreground">Yesterday</span>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="h-2 w-2 rounded-full bg-purple-500" />
-                <span>23 attendees checked in at "Inter-Faculty Sports Carnival"</span>
-                <span className="text-muted-foreground">2 days ago</span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                No recent activity
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EventCard from '@/components/events/EventCard';
-// REMOVED: import { mockEvents } from '@/data/mockEvents';
+// REMOVED: import { mockEvents } from '@/lib/categoryUtils';
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
 // Note: If you have an Event type definition, import it here. 

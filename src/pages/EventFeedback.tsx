@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { mockEvents } from '@/data/mockEvents';
+import { api } from '@/services/api';
 import { cn } from '@/lib/utils';
 
 const feedbackSchema = z.object({
@@ -23,6 +23,12 @@ const feedbackSchema = z.object({
 
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
 
+interface Event {
+  id: string;
+  title: string;
+  // Add other event properties as needed
+}
+
 export default function EventFeedback() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -30,8 +36,8 @@ export default function EventFeedback() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hoveredRating, setHoveredRating] = useState(0);
-
-  const event = mockEvents.find((e) => e.id === id);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const form = useForm<FeedbackFormData>({
     resolver: zodResolver(feedbackSchema),
@@ -44,43 +50,74 @@ export default function EventFeedback() {
 
   const rating = form.watch('rating');
 
-  const onSubmit = async (data: FeedbackFormData) => {
-    setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Save to localStorage
-    const storedFeedback = localStorage.getItem('ums_feedback');
-    const feedbacks = storedFeedback ? JSON.parse(storedFeedback) : [];
-    
-    const newFeedback = {
-      id: `feedback-${Date.now()}`,
-      eventId: id,
-      userId: user?.id,
-      userName: data.isAnonymous ? 'Anonymous' : user?.name,
-      rating: data.rating,
-      comment: data.comment,
-      isAnonymous: data.isAnonymous,
-      createdAt: new Date().toISOString(),
-      isReported: false,
-      isModerated: false,
+  // Fetch event details
+  useEffect(() => {
+    const fetchEvent = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoading(true);
+        const eventData = await api.events.getById(id);
+        setEvent(eventData);
+      } catch (error) {
+        console.error('Error fetching event:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load event details',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    feedbacks.push(newFeedback);
-    localStorage.setItem('ums_feedback', JSON.stringify(feedbacks));
+    fetchEvent();
+  }, [id, toast]);
 
-    setIsSubmitting(false);
-    toast({
-      title: 'Feedback Submitted',
-      description: 'Thank you for your feedback!',
-    });
-    navigate(`/events/${id}`);
+  const onSubmit = async (data: FeedbackFormData) => {
+    if (!id) return;
+
+    setIsSubmitting(true);
+    
+    try {
+      // Submit feedback using API
+      await api.feedback.submit(id, data.rating, data.comment);
+
+      toast({
+        title: 'Feedback Submitted',
+        description: 'Thank you for your feedback!',
+      });
+      navigate(`/events/${id}`);
+    } catch (error: any) {
+      console.error('Error submitting feedback:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit feedback. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container py-12 text-center">
+          <p className="text-muted-foreground">Loading event...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!event) {
     return (
       <MainLayout>
         <div className="container py-12 text-center">
           <p className="text-muted-foreground">Event not found</p>
+          <Button className="mt-4" onClick={() => navigate('/events')}>
+            Back to Events
+          </Button>
         </div>
       </MainLayout>
     );

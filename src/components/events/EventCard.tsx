@@ -3,7 +3,7 @@ import { Calendar, MapPin, Users, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Event } from '@/types/event';
-import { getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
+import { getCategoryColor, getCategoryLabel } from '@/lib/categoryUtils';
 import { cn } from '@/lib/utils';
 
 interface EventCardProps {

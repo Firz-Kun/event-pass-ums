@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { eventsAPI } from '@/services/api';
-import { getCategoryColor, getCategoryLabel } from '@/data/mockEvents';
+import { getCategoryColor, getCategoryLabel } from '@/lib/categoryUtils';
 import { Event, EventStatus } from '@/types/event';
 
 export default function ManageEvents() {
